@@ -96,7 +96,7 @@ const Component = () => {
                 <div className={styles.login}>
                     <div className={styles.component66}>
                         <img
-                            src="/logo.png"
+                            src="/logo.svg"
                             className={styles.logo}
                             alt="logo"
                         />
