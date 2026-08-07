@@ -87,6 +87,21 @@ where
     Ok(())
 }
 
+async fn process_without_upload<F>(
+    rx: Inspect<Receiver<SegmentInfo>, F>,
+    ctx: &Context,
+) -> AppResult<()>
+where
+    F: FnMut(&SegmentInfo),
+{
+    let mut paths = Vec::new();
+    pin!(rx);
+    while let Some(event) = rx.next().await {
+        paths.extend(segment_paths(&event));
+    }
+    execute_postprocessor(paths, ctx).await
+}
+
 async fn initialize_upload_context(
     config: &Config,
     client: &StatelessClient,
@@ -115,11 +130,12 @@ async fn initialize_upload_context(
 async fn get_upload_line(client: &reqwest::Client, line: &str) -> AppResult<Line> {
     let line = match line {
         "bda2" => line::bda2(),
-        "bda" => line::bda(),
         "tx" => line::tx(),
         "txa" => line::txa(),
         "bldsa" => line::bldsa(),
         "alia" => line::alia(),
+        "estx" => line::estx(),
+        "akbd" => line::akbd(),
         _ => Probe::probe(client).await.unwrap_or_default(),
     };
     Ok(line)
@@ -256,6 +272,10 @@ pub async fn submit_to_bilibili(
             .submit_by_bcut_android(studio, None)
             .await
             .change_context(AppError::Unknown)?,
+        SubmitOption::Web => bilibili
+            .submit_by_web(studio, None)
+            .await
+            .change_context(AppError::Unknown)?,
         _ => bilibili
             .submit_by_app(studio, None)
             .await
@@ -363,9 +383,10 @@ pub async fn upload(
         Some(UploadLine::Cntx) => line::cntx(),
         Some(UploadLine::Antx) => line::antx(),
         Some(UploadLine::Attx) => line::attx(),
-        // Some(UploadLine::Bda) => line::bda(),
         Some(UploadLine::Txa) => line::txa(),
         Some(UploadLine::Alia) => line::alia(),
+        Some(UploadLine::Estx) => line::estx(),
+        Some(UploadLine::Akbd) => line::akbd(),
         _ => Probe::probe(&client.client).await.unwrap_or_default(),
     };
     for video_path in video_paths {
@@ -504,6 +525,13 @@ impl UActor {
                     });
                 });
                 let result = match ctx.upload_config() {
+                    Some(config) if config.is_noop_uploader() => {
+                        info!(
+                            uploader = ?config.uploader,
+                            "Skipping upload because uploader is Noop"
+                        );
+                        process_without_upload(inspect, &ctx).await
+                    }
                     Some(config) => process_with_upload(inspect, &ctx, config).await,
                     None => {
                         let mut paths = Vec::new();

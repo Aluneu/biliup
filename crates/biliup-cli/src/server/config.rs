@@ -46,7 +46,7 @@ pub struct Config {
     #[serde(default)]
     pub submit_api: Option<String>,
 
-    /// 上传线路：AUTO | alia | bda2 | bldsa | qn | tx | txa
+    /// 上传线路：AUTO | alia | bda2 | bldsa | tx | txa | estx | akbd
     #[builder(default = default_lines())]
     #[serde(default = "default_lines")]
     pub lines: String,
@@ -122,6 +122,9 @@ pub struct Config {
     /// 虎牙是否保留 imgplus 流名
     #[serde(default)]
     pub huya_imgplus: Option<bool>,
+    /// 虎牙走小程序 API 获取房间信息
+    #[serde(default)]
+    pub huya_mobile_api: Option<bool>,
     /// 虎牙编码参数
     #[serde(default)]
     pub huya_codec: Option<String>,
